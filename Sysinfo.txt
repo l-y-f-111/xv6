@@ -1,0 +1,78 @@
+
+1.首先将 $U/_sysinfotest\ 添加到Makefile的UPROGS中
+
+2.在user/user.h中添加 
+struct sysinfo;
+int sysinfo(struct sysinfo *);
+//因为要打印的是正在运行的系统信息，用结构体保存下来
+
+3.在user/usys.pl中添加存根
+entry("sysinfo");
+
+4.在kernel/syscall.h中添加宏定义
+#define SYS_sysinfo  23
+
+5.在kernel/syscall.c中添加
+extern uint64 sys_sysinfo(void);
+tatic uint64 (*syscalls[])(void)中添加[SYS_sysinfo]   sys_sysinfo,
+char* syscalls_name[23]中添加sysinfo
+
+6.在kernel/defs.h中添加
+uint64             free_mem(void); 和
+uint64             npro(void);
+
+
+7.在kernel/kalloc.c中添加函数，收集可用内存量
+uint 
+free_mem(void)//收集可用内存量
+{
+  struct run *r;
+  uint64 free_num = 0;
+  acquire(&kmem.lock);
+  r = kmem.freelist;
+  while (r) {
+    free_num++;
+    r = r->next;
+  }
+  release(&kmem.lock);
+  return free_num * 4096;
+}
+
+
+8.在kernel/pro.c中添加函数
+uint64
+npro(void)//函数以获取可用进程数目
+{
+   int nproc = 0;
+  for (struct proc *p = proc; p < &proc[NPROC]; p++) {
+    if (p->state != UNUSED)
+      nproc++;
+  }
+  return nproc;
+}
+
+9.在kernel/sysproc.c中
+函数的功能是把在内核地址 src 开始的 len 大小的数据拷贝到用户进程 pagetable 的虚地址 dstva 处
+查看sys_fstat() ( kernel/sysfile.c ) 和filestat() ( kernel /file.c ) 后
+模仿写出
+#include "sysinfo.h"
+uint64
+sys_sysinfo(void)
+{
+   uint64 si_addr;
+   argaddr(0, &si_addr);
+   int nproc;
+   int freemem;
+   nproc = npro();
+   freemem = free_mem();
+   struct sysinfo sysinfo;
+   sysinfo.freemem = freemem;
+   sysinfo.nproc = nproc;
+   struct proc *p = myproc();
+   if (copyout(p->pagetable, si_addr, (char *)&sysinfo, sizeof(sysinfo)) < 0)
+     return -1;
+
+   return 0;
+}
+
+
