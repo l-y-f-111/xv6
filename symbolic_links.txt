@@ -1,0 +1,32 @@
+1.在user/user.h中添加
+int symlink(char*,char*);
+
+
+2.在user/usys.pl中添加
+entry("symlink")；
+
+3.在//kernel/syscall.h中添加
+#define SYS_symlink 22  //系统调用编号
+
+
+4.在kernel/syscall.c中分别添加
+extern uint64 sys_symlink(void);
+[SYS_symlink] sys_symlink,
+
+5.在kernel/stat.h中添加
+#define T_SYMLINK 4   // Symbolic link
+
+
+6.在kernel/fcntl.h中添加
+#define O_NOFOLLOW 0x800  //新的标识
+
+
+7.在kernel/sysfile.c中模仿添加sys_symboliclink函数
+
+
+
+8.
+9.
+10.
+11.
+12.
