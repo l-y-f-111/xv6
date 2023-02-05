@@ -1,0 +1,68 @@
+ip->add[]的前11个为直接索引块，第12个为直接索引块（一级索引），在该块中，又包含了256个块，第13个为间接索引块（二级索引块），在该块中，包含了256个块，256个块又分别每个都包含256个块，总计 11+256+256*256=65803个块
+
+
+
+
+1.首先 修改kernel中的struct inode
+#define NDIRECT 11 //为双间接块牺牲一个直接块号
+#define NINDIRECT (BSIZE / sizeof(uint))
+#define MAXFILE (NDIRECT + NINDIRECT+NINDIRECT*NINDIRECT)//11+256+256*256
+以及结构体
+uint addrs[NDIRECT+2];//11直接块号+1单间接块号+1双间接块号
+
+2.修改kernel/file.h中的结构体inode
+uint addrs[NDIRECT+2];
+
+3.修改fs.c中的bmap函数，获取块号、释放缓存块，并且识别二级索引的块
+static uint
+bmap(struct inode *ip, uint bn)
+{
+  uint addr, *a;
+  struct buf *bp;
+ if(bn < NDIRECT){
+    if((addr = ip->addrs[bn]) == 0)
+      ip->addrs[bn] = addr = balloc(ip->dev);
+    return addr;
+  }
+  bn -= NDIRECT;
+
+  if(bn < NINDIRECT){ // singly-indirect
+    // Load indirect block, allocating if necessary.
+    if((addr = ip->addrs[NDIRECT]) == 0)
+      ip->addrs[NDIRECT] = addr = balloc(ip->dev);
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if((addr = a[bn]) == 0){
+      a[bn] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+    return addr;
+  }
+
+     bn -= NINDIRECT;
+
+  if(bn < NINDIRECT * NINDIRECT) { // doubly-indirect
+    // Load indirect block, allocating if necessary.
+    if((addr = ip->addrs[NDIRECT+1]) == 0)
+      ip->addrs[NDIRECT+1] = addr = balloc(ip->dev);
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if((addr = a[bn/NINDIRECT]) == 0){
+      a[bn/NINDIRECT] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+    bn %= NINDIRECT;
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if((addr = a[bn]) == 0){
+      a[bn] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+    return addr;
+  }
+
+  panic("bmap: out of range");
+}
