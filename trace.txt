@@ -1,0 +1,48 @@
+1·在user/user.h中添加函数原型 
+int trace(int);
+
+2·在user/usys.pl中添加存根
+entry("trace")；
+
+3·在kernel/syscall.h中添加系统调用号
+#define SYS_trace  22
+
+4·在proc.h中
+proc结构体中添加
+int mask
+
+5·在kernel/sysproc.c中
+添加函数
+uint64
+sys_trace(void)
+{
+  int mask;
+  argint(0, &mask);//从对应的寄存器中取出参数并转成 int 类型
+  //eg: trace(30); 调用之后，mask的值为30
+  if(mask<0)
+    return -1;
+   myproc()->mask=mask//myproc()获取当前进程,即保存到当前进程的mask
+   return 0;
+
+}
+
+
+6·在kernel/pro.c中
+添加
+  np->mask = p->mask;
+
+
+7·在kernel/syscall.c中
+添加声明extern uint64 sys_trace(void);
+数组中添加[SYS_trace]   sys_trace
+添加
+char* syscalls_name[23] = {"", "fork", "exit", "wait", "pipe", "read", "kill", "exec",
+                      "fstat", "chdir", "dup", "getpid", "sbrk", "sleep", "uptime",
+                      "open", "write", "mknod", "unlink", "link", "mkdir", "close", "trace"};
+在函数中添加追踪功能
+    //追踪
+    if(p->mask&(1<<num))
+      printf("%d: %s -> %d\n",p->pid,syscalls_name[num],p->trapframe->a0);
+  
+ 
+ 
