@@ -1,0 +1,41 @@
+//
+Answer
+
+
+Q1:Looking at the backtrace output, which function called syscall?
+
+通过backtrace将打印堆栈回溯，usertrap()调用了syscall()函数
+
+Q2:What is the value of p->trapframe->a7 and what does that value represent? (Hint: look user/initcode.S, the first user program xv6 starts.)
+
+$2 = 7得到a7的值为7
+
+
+Q3:What was the previous mode that the CPU was in?
+
+p /t $$status以二进制打印，查看sstatus寄存器
+$4 = 100010  SPP位是0,所以特权级别为user mode
+
+Q4:Write down the assembly instruction the kernel is panicing at. Which register corresponds to the varialable num?
+
+sepc=0x0000000080001ff6，到kerel.asm中查看内核编译代码，找到了室内和painc的代码
+num = * (int *) 0;对应汇编lw a3,0(zero) 
+a3寄存器对应于变量num
+
+
+Q5:Why does the kernel crash? Hint: look at figure 3-3 in the text; is address 0 mapped in the kernel address space? Is that confirmed by the value in scause above? (See description of scause in RISC-V privileged instructions)
+
+GDB调试 b *0x0000000080001ff6 设置断点，
+p $scause 查看到scase寄存器中内核panic的原因
+$1 = 13
+查资料得知13代表Load page fault,内存地址加载数据到寄存器a3出错，即内核加载一个为使用的地址0处的内存数据而引发了崩溃
+
+
+Q6:What is the name of the binary that was running when the kernel paniced? What is its process id (pid)?
+
+运行gdb后通过打印proc结构体中的name来查看那一个用户程序调用syscal时产生了painc
+p p->name
+$1 = "initcode\000\000\000\000\000\000\000"
+这个程序为initcode
+p *p打印进程的其他信息，查看到pid为1
+
